@@ -25,6 +25,7 @@ class AdminPanelProvider extends PanelProvider
     {
         return $panel
             ->default()
+            ->authGuard('web')
             ->id('admin')
             ->path('admin')
             ->login()

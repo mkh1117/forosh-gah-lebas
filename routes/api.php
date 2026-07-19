@@ -5,9 +5,62 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Models\Post;
 
-Route::get('/user', function (Request $request) {
-    return $request->user();
-})->middleware('auth:sanctum');
+use App\Models\User;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\ValidationException;
+
+// ثبت‌نام
+Route::post('/register', function (Request $request) {
+    $request->validate([
+        'name'     => 'required|string|max:255',
+        'email'    => 'required|email|unique:users,email',
+        'password' => 'required|string|min:8|confirmed',
+    ]);
+
+    $user = User::create([
+        'name'     => $request->name,
+        'email'    => $request->email,
+        'password' => Hash::make($request->password),
+        // is_admin اینجا نیست — default false می‌مونه
+    ]);
+
+    $token = $user->createToken('api-token')->plainTextToken;
+    return response()->json(['user' => $user, 'token' => $token], 201);
+});
+
+// ورود
+Route::post('/login', function (Request $request) {
+    $request->validate([
+        'email'    => 'required|email',
+        'password' => 'required|string',
+    ]);
+
+    if (!Auth::attempt($request->only('email', 'password'))) {
+        return response()->json([
+            'message' => 'ایمیل یا رمز عبور اشتباه است',
+        ], 401);
+    }
+
+    $user  = Auth::user();
+    $token = $user->createToken('auth_token')->plainTextToken;
+
+    return response()->json([
+        'user'  => $user,
+        'token' => $token,
+    ]);
+});
+
+// خروج
+Route::middleware('auth:sanctum')->post('/logout', function (Request $request) {
+    $request->user()->currentAccessToken()->delete();
+    return response()->json(['message' => 'خروج موفق']);
+});
+
+// اطلاعات کاربر لاگین‌شده
+Route::middleware('auth:sanctum')->get('/me', function (Request $request) {
+    return response()->json($request->user());
+});
 
 Route::get('/products', function (Request $request) {
     $query = Post::with('variants');
