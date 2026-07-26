@@ -177,3 +177,5 @@ Route::get('/off', function () {
     return response()->json($responseData);
 
 });
+
+Route::get('/products/{product}/recommendations', [ProductController::class, 'getRecommendations']);

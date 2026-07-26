@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\Post;
+use App\Models\ProductVariant;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class ProductController extends Controller
 {
@@ -72,4 +74,41 @@ class ProductController extends Controller
             'variants'         => $p->variants,
         ];
     }
+
+   public function getRecommendations(Post $product)
+{
+    // ۱. یافتن سفارش‌هایی که این محصول در آن‌ها خرید شده
+    $orderIds = DB::table('order_items')
+        ->where('post_id', $product->id)
+        ->pluck('order_id');
+
+    $suggestedProducts = collect();
+
+    if ($orderIds->isNotEmpty()) {
+        // ۲. یافتن محصولات دیگری که همراه این محصول بیشترین خرید را داشته‌اند
+        $frequentlyBoughtIds = DB::table('order_items')
+            ->whereIn('order_id', $orderIds)
+            ->where('post_id', '!=', $product->id)
+            ->select('post_id', DB::raw('COUNT(*) as total_bought'))
+            ->groupBy('post_id')
+            ->orderByDesc('total_bought')
+            ->limit(4)
+            ->pluck('post_id');
+
+        if ($frequentlyBoughtIds->isNotEmpty()) {
+            $suggestedProducts = Post::whereIn('id', $frequentlyBoughtIds)->get();
+        }
+    }
+
+    // ۳. Fallback: اگر خریدی ثبت نشده بود، محصولات هم‌دسته را برگردان
+    if ($suggestedProducts->isEmpty()) {
+        $suggestedProducts = Post::where('category', $product->category)
+            ->where('id', '!=', $product->id)
+            ->inRandomOrder()
+            ->take(4)
+            ->get();
+    }
+
+    return response()->json($suggestedProducts);
+}
 }

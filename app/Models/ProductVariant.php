@@ -40,4 +40,9 @@ class ProductVariant extends Model
     {
         return json_encode($this->post->size);
     }
+
+    public function orderItems()
+    {
+    return $this->hasMany(OrderItem::class);
+    }
 }
