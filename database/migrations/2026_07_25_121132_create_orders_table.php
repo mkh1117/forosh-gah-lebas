@@ -14,7 +14,7 @@ return new class extends Migration
             $table->foreignId('user_id')->nullable()->constrained('users')->onDelete('set null');
 
             $table->unsignedBigInteger('total_price');
-            $table->string('status')->default('pending');
+            $table->enum('status',['pending','processing','completed','canceled'])->default('pending');
             $table->string('receiver_name')->nullable();
             $table->string('phone')->nullable();
             $table->text('address')->nullable();
