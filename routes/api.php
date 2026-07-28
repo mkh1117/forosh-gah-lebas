@@ -63,65 +63,6 @@ Route::middleware('auth:sanctum')->get('/me', function (Request $request) {
     return response()->json($request->user());
 });
 
-Route::get('/products', function (Request $request) {
-    $query = Post::with('variants');
-
-    // فیلتر دسته‌بندی
-    if ($request->category) {
-        $query->where('category', $request->category);
-    }
-
-    // فیلتر سایز
-    if ($request->sizes) {
-        $sizes = explode(',', $request->sizes);
-        $query->whereHas('variants', fn($q) => $q->whereIn('size', $sizes)->where('stock', '>', 0));
-    }
-
-    // فیلتر رنگ
-    if ($request->colors) {
-        $colors = explode(',', $request->colors);
-        $query->whereHas('variants', fn($q) => $q->whereIn('color', $colors)->where('stock', '>', 0));
-    }
-
-    // فقط حراجی‌ها
-   if ($request->sale_only == '1' || $request->sale_only === 'true'){
-        $today = now()->toDateString();
-        $query->where('has_discount', true)
-              ->where(fn($q) => $q->whereNull('discount_start')->orWhere('discount_start', '<=', $today))
-              ->where(fn($q) => $q->whereNull('discount_end')->orWhere('discount_end', '>=', $today));
-    }
-
-    // فیلتر قیمت
-    if ($request->filled('min_price')) {
-        $query->where('default_price', '>=', $request->min_price);
-    }
-    if ($request->filled('max_price')) {
-        $query->where('default_price', '<=', $request->max_price);
-    }
-
-    $posts = $query->get();
-
-    return response()->json($posts->map(function ($post) {
-        $today    = now()->toDateString();
-        $saleActive = $post->has_discount
-            && $post->discount_percent
-            && (!$post->discount_start || $post->discount_start <= $today)
-            && (!$post->discount_end   || $post->discount_end   >= $today);
-
-        return [
-            'id'               => $post->id,
-            'title'            => $post->title,
-            'price'            => $post->default_price,
-            'picture'          => str_replace('posts/', '', $post->picture),
-            'category'         => $post->category,
-            'sale'             => $saleActive,
-            'discount_percent' => $saleActive ? $post->discount_percent : null,
-            'sizes'            => $post->variants->pluck('size')->unique()->values(),
-            'colors'           => $post->variants->pluck('color')->unique()->values(),
-        ];
-    }));
-});
-
 Route::get('/products/{productId}', function ($productId) {
     $post = Post::with('variants')->where('id', $productId)->first();
 
@@ -152,6 +93,79 @@ Route::get('/products/{productId}', function ($productId) {
         'variants'         => $post->variants, // برای چک موجودی بعداً
     ]);
 });
+
+Route::get('/products', function (Request $request) {
+    // ۱. محاسبه کمترین و بیشترین قیمت موجود در کل دیتابیس
+    $minPrice = Post::min('default_price') ?? 0;
+    $maxPrice = Post::max('default_price') ?? 10000000;
+
+    $query = Post::with('variants');
+
+    // فیلتر دسته‌بندی
+    if ($request->category) {
+        $query->where('category', $request->category);
+    }
+
+    // فیلتر سایز
+    if ($request->sizes) {
+        $sizes = explode(',', $request->sizes);
+        $query->whereHas('variants', fn($q) => $q->whereIn('size', $sizes)->where('stock', '>', 0));
+    }
+
+    // فیلتر رنگ
+    if ($request->colors) {
+        $colors = explode(',', $request->colors);
+        $query->whereHas('variants', fn($q) => $q->whereIn('color', $colors)->where('stock', '>', 0));
+    }
+
+    // فقط حراجی‌ها
+    if ($request->sale_only == '1' || $request->sale_only === 'true') {
+        $today = now()->toDateString();
+        $query->where('has_discount', true)
+              ->where(fn($q) => $q->whereNull('discount_start')->orWhere('discount_start', '<=', $today))
+              ->where(fn($q) => $q->whereNull('discount_end')->orWhere('discount_end', '>=', $today));
+    }
+
+    // فیلتر قیمت
+    if ($request->filled('min_price')) {
+        $query->where('default_price', '>=', $request->min_price);
+    }
+    if ($request->filled('max_price')) {
+        $query->where('default_price', '<=', $request->max_price);
+    }
+
+    $posts = $query->get();
+
+    // تبدیل لیست محصولات به فرمت مورد نیاز فرانت
+    $formattedProducts = $posts->map(function ($post) {
+        $today = now()->toDateString();
+        $saleActive = $post->has_discount
+            && $post->discount_percent
+            && (!$post->discount_start || $post->discount_start <= $today)
+            && (!$post->discount_end   || $post->discount_end   >= $today);
+
+        return [
+            'id'               => $post->id,
+            'title'            => $post->title,
+            'price'            => $post->default_price,
+            'picture'          => str_replace('posts/', '', $post->picture),
+            'category'         => $post->category,
+            'sale'             => $saleActive,
+            'discount_percent' => $saleActive ? $post->discount_percent : null,
+            'sizes'            => $post->variants->pluck('size')->unique()->values(),
+            'colors'           => $post->variants->pluck('color')->unique()->values(),
+        ];
+    });
+
+    // ۲. خروجی همراه با min_price و max_price
+    return response()->json([
+        'products'  => $formattedProducts,
+        'min_price' => (int) $minPrice,
+        'max_price' => (int) $maxPrice,
+    ]);
+});
+
+
 
 
 
