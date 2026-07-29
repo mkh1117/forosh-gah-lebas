@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ProductController;
+use App\Http\Controllers\ProfileController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Models\Post;
@@ -9,6 +10,7 @@ use App\Models\Post;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
 // ثبت‌نام
@@ -30,7 +32,7 @@ Route::post('/register', function (Request $request) {
     return response()->json(['user' => $user, 'token' => $token], 201);
 });
 
-// ورود
+
 Route::post('/login', function (Request $request) {
     $request->validate([
         'email'    => 'required|email',
@@ -44,6 +46,9 @@ Route::post('/login', function (Request $request) {
     }
 
     $user  = Auth::user();
+
+
+    // ساخت توکن جدید
     $token = $user->createToken('auth_token')->plainTextToken;
 
     return response()->json([
@@ -193,9 +198,14 @@ Route::get('/off', function () {
 
 });
 
+Route::middleware('auth:sanctum')->group(function () {
+Route::get('/user', [ProfileController::class, 'show']);
+Route::put('/user/profile', [ProfileController::class, 'update']);
+
+
 Route::get('/products/{product}/recommendations', [ProductController::class, 'getRecommendations']);
 
 Route::get('/orders', [OrderController::class, 'index']);
 Route::post('/orders', [OrderController::class, 'store']);
 Route::get('/orders/{id}', [OrderController::class, 'show']);
-
+});
