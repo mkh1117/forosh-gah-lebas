@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
-// ثبت‌نام
+
 Route::post('/register', function (Request $request) {
     $request->validate([
         'name'     => 'required|string|max:255',
@@ -25,7 +25,6 @@ Route::post('/register', function (Request $request) {
         'name'     => $request->name,
         'email'    => $request->email,
         'password' => Hash::make($request->password),
-        // is_admin اینجا نیست — default false می‌مونه
     ]);
 
     $token = $user->createToken('api-token')->plainTextToken;
@@ -48,7 +47,7 @@ Route::post('/login', function (Request $request) {
     $user  = Auth::user();
 
 
-    // ساخت توکن جدید
+
     $token = $user->createToken('auth_token')->plainTextToken;
 
     return response()->json([
@@ -57,13 +56,13 @@ Route::post('/login', function (Request $request) {
     ]);
 });
 
-// خروج
+
 Route::middleware('auth:sanctum')->post('/logout', function (Request $request) {
     $request->user()->currentAccessToken()->delete();
     return response()->json(['message' => 'خروج موفق']);
 });
 
-// اطلاعات کاربر لاگین‌شده
+
 Route::middleware('auth:sanctum')->get('/me', function (Request $request) {
     return response()->json($request->user());
 });
@@ -77,7 +76,7 @@ Route::get('/products/{productId}', function ($productId) {
 
     $addressPicture = str_replace("posts/", "", $post->picture);
 
-    // سایزها و رنگ‌های unique از variants
+
     $sizes  = $post->variants->pluck('size')->unique()->values();
     $colors = $post->variants->pluck('color')->unique()->values();
 
@@ -209,12 +208,14 @@ Route::get('/off', function () {
 
 });
 
+
+Route::get('/products/{product}/recommendations', [ProductController::class, 'getRecommendations']);
+
 Route::middleware('auth:sanctum')->group(function () {
 Route::get('/user', [ProfileController::class, 'show']);
 Route::put('/user/profile', [ProfileController::class, 'update']);
 
 
-Route::get('/products/{product}/recommendations', [ProductController::class, 'getRecommendations']);
 
 Route::get('/orders', [OrderController::class, 'index']);
 Route::post('/orders', [OrderController::class, 'store']);

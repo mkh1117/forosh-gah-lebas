@@ -77,7 +77,6 @@ class ProductController extends Controller
 
    public function getRecommendations(Post $product)
 {
-    // ۱. یافتن سفارش‌هایی که این محصول در آن‌ها خرید شده
     $orderIds = DB::table('order_items')
         ->where('post_id', $product->id)
         ->pluck('order_id');
@@ -85,7 +84,6 @@ class ProductController extends Controller
     $suggestedProducts = collect();
 
     if ($orderIds->isNotEmpty()) {
-        // ۲. یافتن محصولات دیگری که همراه این محصول بیشترین خرید را داشته‌اند
         $frequentlyBoughtIds = DB::table('order_items')
             ->whereIn('order_id', $orderIds)
             ->where('post_id', '!=', $product->id)
@@ -100,7 +98,7 @@ class ProductController extends Controller
         }
     }
 
-    // ۳. Fallback: اگر خریدی ثبت نشده بود، محصولات هم‌دسته را برگردان
+
     if ($suggestedProducts->isEmpty()) {
         $suggestedProducts = Post::where('category', $product->category)
             ->where('id', '!=', $product->id)
